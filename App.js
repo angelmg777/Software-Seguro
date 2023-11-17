@@ -3,16 +3,14 @@ import { View, Text, TextInput, Button, StyleSheet, TouchableOpacity, Alert, Act
 import { firebase } from './config';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import cryptoes from "crypto-es";
-
+import CryptoJS from 'crypto-js';
 
 // Importa las bibliotecas necesarias
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
-
 import Main from './Main';
 import LogIn from './LogIn';
-
 
 // Crea la pila de navegación
 const Stack = createStackNavigator();
@@ -42,19 +40,25 @@ const App = ({ navigation }) => {
   const [loading, setLoading] = useState(false); // Estado de carga
 
 
-
-
-
   const isPasswordValid = (password) => {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
     return passwordRegex.test(password);
   };
 
+  const alternativeEncryption = (password, clave) => {
+  const encrypted = password.split('').reverse().join('');
+  return encrypted;
+};
+
   const registerUser = async (name, email, password) => {
 
-    var CryptoJS = require("crypto-js");
+    /*var CryptoJS = require("crypto-js");
     var clave = "agmg";
     var passwordEncryp = CryptoJS.AES.encrypt(password, clave).toString();
+*/
+   /* var CryptoJS = require("crypto-js");
+    var clave = "agmg";
+    var passwordEncryp;*/
 
     try {
       setLoading(true); // Activa la carga
@@ -71,13 +75,24 @@ const App = ({ navigation }) => {
         'Se envió la verificación a tu correo, complétala para continuar!'
       );
 
+      /* try {
+      // Intenta usar criptografía nativa
+      passwordEncryp = CryptoJS.AES.encrypt(password, clave).toString();
+    } catch (cryptoError) {
+      // Maneja el error, utiliza cifrado alternativo
+      console.error('Error en la criptografía:', cryptoError.message);
+      passwordEncryp = alternativeEncryption(password, clave);
+    }*/
+
       await firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid).set({
          name,
          email,
          password,
-         passwordEncryp,
+         //passwordEncryp,
   
       });
+
+      navigation.navigate('Inicio Sesion'); // Navega a la pantalla de éxito
     
     } catch (error) {
       alert(error.message);
@@ -85,13 +100,31 @@ const App = ({ navigation }) => {
   };
 
 
-  const handleRegister = () => {
+  const handleRegister = async() => {
+
+     // Validación de campos
+  if (!name || !email || !password) {
+    Alert.alert('Campos incompletos', 'Todos los campos son obligatorios.');
+    return;
+  } 
+
+  //Validación de existencia de cuenta
+  try {
+    const emailExists = await firebase.firestore().collection('users').where('email', '==', email).get();
+    if (!emailExists.empty) {
+      Alert.alert('Correo existente', 'Ya existe una cuenta con este correo electrónico.');
+      return;
+    }
+  } catch (error) {
+    console.error('Error al verificar la existencia del correo:', error);
+    Alert.alert('Error', 'Hubo un error al verificar la existencia del correo. Intenta nuevamente.');
+    return;
+  }
     const passwordValid = isPasswordValid(password);
     setIsValidPassword(passwordValid);
 
     if (passwordValid) {
       registerUser(name, email, password)
-      navigation.navigate('Inicio Sesion'); // Navega a la pantalla de éxito
     }
   };
   
@@ -108,7 +141,8 @@ const App = ({ navigation }) => {
         placeholder="Ingresa tu nombre"
         value={name}
         onChangeText={(text) => setname(text)}
-      />      <TextInput
+      />
+      <TextInput
         style={styles.input}
         placeholder="Ingresa un correo electronico"
         value={email}
@@ -140,6 +174,8 @@ const App = ({ navigation }) => {
     {'\n'} * Mayúsculas y minúsculas
     {'\n'} * Al menos un número
     {'\n'} * Símbolo o carácter especial.</Text>}
+
+    
       <Button title="Registrar"onPress={handleRegister} />
       
 
